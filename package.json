@@ -10,7 +10,14 @@
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": ["mcp", "ftp", "sftp", "file-transfer", "sync", "amp"],
+  "keywords": [
+    "mcp",
+    "ftp",
+    "sftp",
+    "file-transfer",
+    "sync",
+    "amp"
+  ],
   "author": "Kynlo",
   "license": "MIT",
   "repository": {
@@ -20,6 +27,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "basic-ftp": "^5.0.5",
+    "minimatch": "^10.0.3",
     "ssh2-sftp-client": "^11.0.0"
   }
 }

@@ -5,6 +5,7 @@ MCP server providing enhanced FTP/SFTP operations with smart sync, search, and d
 ## Features
 
 - 🔄 **Smart Sync** - Only transfer changed files between local and remote
+- 🛡️ **Git-Aware** - Automatically respects `.gitignore` and `.ftpignore` patterns
 - 🔍 **Search & Tree** - Find files by pattern, view entire directory structures
 - 📝 **Direct Access** - Read/write file contents without downloading
 - 📦 **Batch Operations** - Upload/download multiple files at once
@@ -480,6 +481,50 @@ FlowdexMCP automatically detects the protocol based on your hostname:
 - `sftp://example.com` → Uses SFTP on port 22
 - Custom ports can be specified via `FTPMCP_PORT` or in `.ftpconfig`
 
+## Git-Aware File Filtering
+
+FlowdexMCP automatically ignores files that shouldn't be deployed to production:
+
+### Default Ignore Patterns
+Always ignored by default:
+- `node_modules/`
+- `.git/`
+- `.env` and `.env.*`
+- `*.log` files
+- `.DS_Store`, `Thumbs.db`
+- IDE folders (`.vscode/`, `.idea/`)
+- Temporary files (`*.swp`, `*~`)
+- `.ftpconfig`
+- Cache and coverage directories
+
+### .gitignore Support
+FlowdexMCP automatically reads and respects your `.gitignore` file. Any patterns you've added to `.gitignore` will be honored during sync operations.
+
+### .ftpignore Support
+Create a `.ftpignore` file in your project root for FTP-specific ignore patterns:
+
+```
+# .ftpignore example
+*.md
+docs/**
+tests/**
+*.test.js
+```
+
+**Priority Order:**
+1. Default patterns (always applied)
+2. `.gitignore` patterns (if file exists)
+3. `.ftpignore` patterns (if file exists)
+
+**Example sync output:**
+```
+Sync complete:
+Uploaded: 15
+Downloaded: 0
+Skipped: 3
+Ignored: 47  ← Files filtered by ignore patterns
+```
+
 ## Security Notes
 
 - Never commit `.ftpconfig` files containing passwords to version control
@@ -487,6 +532,7 @@ FlowdexMCP automatically detects the protocol based on your hostname:
 - Consider using SSH keys with SFTP for enhanced security
 - Set restrictive permissions (600/644) on sensitive files
 - The `.ftpconfig` file is included in `.gitignore` by default
+- Sensitive files like `.env` are automatically ignored during sync
 
 ## License
 

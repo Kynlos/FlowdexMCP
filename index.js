@@ -11,9 +11,81 @@ import SFTPClient from "ssh2-sftp-client";
 import fs from "fs/promises";
 import path from "path";
 import { Readable, Writable } from "stream";
+import { minimatch } from "minimatch";
 
 let currentConfig = null;
 let currentProfile = null;
+
+const DEFAULT_IGNORE_PATTERNS = [
+  'node_modules/**',
+  '.git/**',
+  '.env',
+  '.env.*',
+  '*.log',
+  '.DS_Store',
+  'Thumbs.db',
+  '.vscode/**',
+  '.idea/**',
+  '*.swp',
+  '*.swo',
+  '*~',
+  '.ftpconfig',
+  'npm-debug.log*',
+  'yarn-debug.log*',
+  'yarn-error.log*',
+  '.npm',
+  '.cache/**',
+  'coverage/**',
+  '.nyc_output/**',
+  '*.pid',
+  '*.seed',
+  '*.pid.lock'
+];
+
+async function loadIgnorePatterns(localPath) {
+  const patterns = [...DEFAULT_IGNORE_PATTERNS];
+  
+  try {
+    const ftpignorePath = path.join(localPath, '.ftpignore');
+    const ftpignoreContent = await fs.readFile(ftpignorePath, 'utf8');
+    const ftpignorePatterns = ftpignoreContent
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line && !line.startsWith('#'));
+    patterns.push(...ftpignorePatterns);
+  } catch (e) {
+    // .ftpignore doesn't exist, that's fine
+  }
+  
+  try {
+    const gitignorePath = path.join(localPath, '.gitignore');
+    const gitignoreContent = await fs.readFile(gitignorePath, 'utf8');
+    const gitignorePatterns = gitignoreContent
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line && !line.startsWith('#'));
+    patterns.push(...gitignorePatterns);
+  } catch (e) {
+    // .gitignore doesn't exist, that's fine
+  }
+  
+  return patterns;
+}
+
+function shouldIgnore(filePath, ignorePatterns, basePath) {
+  const relativePath = path.relative(basePath, filePath).replace(/\\/g, '/');
+  
+  for (const pattern of ignorePatterns) {
+    if (minimatch(relativePath, pattern, { dot: true, matchBase: true })) {
+      return true;
+    }
+    if (minimatch(path.basename(filePath), pattern, { dot: true })) {
+      return true;
+    }
+  }
+  
+  return false;
+}
 
 async function loadFTPConfig(profileName = null, forceEnv = false) {
   if (forceEnv) {
@@ -125,8 +197,13 @@ async function getTreeRecursive(client, useSFTP, remotePath, depth = 0, maxDepth
   return results;
 }
 
-async function syncFiles(client, useSFTP, localPath, remotePath, direction) {
-  const stats = { uploaded: 0, downloaded: 0, skipped: 0, errors: [] };
+async function syncFiles(client, useSFTP, localPath, remotePath, direction, ignorePatterns = null, basePath = null) {
+  const stats = { uploaded: 0, downloaded: 0, skipped: 0, errors: [], ignored: 0 };
+  
+  if (ignorePatterns === null) {
+    ignorePatterns = await loadIgnorePatterns(localPath);
+    basePath = localPath;
+  }
   
   if (direction === 'upload' || direction === 'both') {
     const localFiles = await fs.readdir(localPath, { withFileTypes: true });
@@ -135,6 +212,11 @@ async function syncFiles(client, useSFTP, localPath, remotePath, direction) {
       const localFilePath = path.join(localPath, file.name);
       const remoteFilePath = `${remotePath}/${file.name}`;
       
+      if (shouldIgnore(localFilePath, ignorePatterns, basePath)) {
+        stats.ignored++;
+        continue;
+      }
+      
       try {
         if (file.isDirectory()) {
           if (useSFTP) {
@@ -142,10 +224,11 @@ async function syncFiles(client, useSFTP, localPath, remotePath, direction) {
           } else {
             await client.ensureDir(remoteFilePath);
           }
-          const subStats = await syncFiles(client, useSFTP, localFilePath, remoteFilePath, direction);
+          const subStats = await syncFiles(client, useSFTP, localFilePath, remoteFilePath, direction, ignorePatterns, basePath);
           stats.uploaded += subStats.uploaded;
           stats.downloaded += subStats.downloaded;
           stats.skipped += subStats.skipped;
+          stats.ignored += subStats.ignored;
           stats.errors.push(...subStats.errors);
         } else {
           const localStat = await fs.stat(localFilePath);
@@ -850,7 +933,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [{
             type: "text",
-            text: `Sync complete:\nUploaded: ${stats.uploaded}\nDownloaded: ${stats.downloaded}\nSkipped: ${stats.skipped}\n${stats.errors.length > 0 ? '\nErrors:\n' + stats.errors.join('\n') : ''}`
+            text: `Sync complete:\nUploaded: ${stats.uploaded}\nDownloaded: ${stats.downloaded}\nSkipped: ${stats.skipped}\nIgnored: ${stats.ignored}\n${stats.errors.length > 0 ? '\nErrors:\n' + stats.errors.join('\n') : ''}`
           }]
         };
       }
