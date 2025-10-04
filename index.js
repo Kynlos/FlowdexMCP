@@ -197,12 +197,16 @@ async function getTreeRecursive(client, useSFTP, remotePath, depth = 0, maxDepth
   return results;
 }
 
-async function syncFiles(client, useSFTP, localPath, remotePath, direction, ignorePatterns = null, basePath = null) {
+async function syncFiles(client, useSFTP, localPath, remotePath, direction, ignorePatterns = null, basePath = null, extraExclude = []) {
   const stats = { uploaded: 0, downloaded: 0, skipped: 0, errors: [], ignored: 0 };
   
   if (ignorePatterns === null) {
     ignorePatterns = await loadIgnorePatterns(localPath);
     basePath = localPath;
+  }
+  
+  if (extraExclude.length > 0) {
+    ignorePatterns = [...ignorePatterns, ...extraExclude];
   }
   
   if (direction === 'upload' || direction === 'both') {
@@ -224,7 +228,7 @@ async function syncFiles(client, useSFTP, localPath, remotePath, direction, igno
           } else {
             await client.ensureDir(remoteFilePath);
           }
-          const subStats = await syncFiles(client, useSFTP, localFilePath, remoteFilePath, direction, ignorePatterns, basePath);
+          const subStats = await syncFiles(client, useSFTP, localFilePath, remoteFilePath, direction, ignorePatterns, basePath, extraExclude);
           stats.uploaded += subStats.uploaded;
           stats.downloaded += subStats.downloaded;
           stats.skipped += subStats.skipped;
@@ -299,6 +303,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               default: false
             }
           }
+        }
+      },
+      {
+        name: "ftp_deploy",
+        description: "Run a named deployment preset from .ftpconfig",
+        inputSchema: {
+          type: "object",
+          properties: {
+            deployment: {
+              type: "string",
+              description: "Deployment name from .ftpconfig deployments (e.g., 'deploy-frontend', 'deploy-api')"
+            }
+          },
+          required: ["deployment"]
+        }
+      },
+      {
+        name: "ftp_list_deployments",
+        description: "List all available deployment presets from .ftpconfig",
+        inputSchema: {
+          type: "object",
+          properties: {}
         }
       },
       {
@@ -637,6 +663,109 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 });
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  if (request.params.name === "ftp_list_deployments") {
+    try {
+      const configPath = path.join(process.cwd(), '.ftpconfig');
+      const configData = await fs.readFile(configPath, 'utf8');
+      const config = JSON.parse(configData);
+      
+      if (!config.deployments || Object.keys(config.deployments).length === 0) {
+        return {
+          content: [{
+            type: "text",
+            text: "No deployments configured in .ftpconfig"
+          }]
+        };
+      }
+      
+      const deploymentList = Object.entries(config.deployments).map(([name, deploy]) => {
+        return `${name}\n  Profile: ${deploy.profile}\n  Local: ${deploy.local}\n  Remote: ${deploy.remote}\n  Description: ${deploy.description || 'N/A'}`;
+      }).join('\n\n');
+      
+      return {
+        content: [{
+          type: "text",
+          text: `Available deployments:\n\n${deploymentList}`
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text", text: `Error: ${error.message}` }],
+        isError: true
+      };
+    }
+  }
+
+  if (request.params.name === "ftp_deploy") {
+    try {
+      const { deployment } = request.params.arguments;
+      const configPath = path.join(process.cwd(), '.ftpconfig');
+      const configData = await fs.readFile(configPath, 'utf8');
+      const config = JSON.parse(configData);
+      
+      if (!config.deployments || !config.deployments[deployment]) {
+        return {
+          content: [{
+            type: "text",
+            text: `Deployment "${deployment}" not found in .ftpconfig. Use ftp_list_deployments to see available deployments.`
+          }],
+          isError: true
+        };
+      }
+      
+      const deployConfig = config.deployments[deployment];
+      const profileConfig = config[deployConfig.profile];
+      
+      if (!profileConfig) {
+        return {
+          content: [{
+            type: "text",
+            text: `Profile "${deployConfig.profile}" not found in .ftpconfig`
+          }],
+          isError: true
+        };
+      }
+      
+      currentConfig = profileConfig;
+      currentProfile = deployConfig.profile;
+      
+      const useSFTP = isSFTP(currentConfig.host);
+      const client = useSFTP ? await connectSFTP(currentConfig) : await connectFTP(currentConfig);
+      
+      try {
+        const localPath = path.resolve(deployConfig.local);
+        const stats = await syncFiles(
+          client, 
+          useSFTP, 
+          localPath, 
+          deployConfig.remote, 
+          'upload',
+          null,
+          null,
+          deployConfig.exclude || []
+        );
+        
+        return {
+          content: [{
+            type: "text",
+            text: `Deployment "${deployment}" complete:\n${deployConfig.description || ''}\n\nProfile: ${deployConfig.profile}\nLocal: ${deployConfig.local}\nRemote: ${deployConfig.remote}\n\nUploaded: ${stats.uploaded}\nSkipped: ${stats.skipped}\nIgnored: ${stats.ignored}\n${stats.errors.length > 0 ? '\nErrors:\n' + stats.errors.join('\n') : ''}`
+          }]
+        };
+      } finally {
+        if (useSFTP) {
+          await client.end();
+        } else {
+          client.close();
+        }
+      }
+    } catch (error) {
+      return {
+        content: [{ type: "text", text: `Error: ${error.message}` }],
+        isError: true
+      };
+    }
+  }
+
   if (request.params.name === "ftp_connect") {
     try {
       const { profile, useEnv } = request.params.arguments || {};

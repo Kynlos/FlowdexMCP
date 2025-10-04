@@ -4,6 +4,7 @@ MCP server providing enhanced FTP/SFTP operations with smart sync, search, and d
 
 ## Features
 
+- 🚀 **Deployment Presets** - Save complete deployment workflows, run with one command
 - 🔄 **Smart Sync** - Only transfer changed files between local and remote
 - 🛡️ **Git-Aware** - Automatically respects `.gitignore` and `.ftpignore` patterns
 - 🔍 **Search & Tree** - Find files by pattern, view entire directory structures
@@ -85,6 +86,41 @@ Create `.ftpconfig` in your project directory:
 
 The server will check for `.ftpconfig` first, then fall back to environment variables.
 
+**Add Deployment Presets (Optional but Recommended):**
+
+In the same `.ftpconfig` file, add a `deployments` section to save complete deployment workflows:
+
+```json
+{
+  "production": {
+    "host": "ftp.example.com",
+    "user": "prod-user",
+    "password": "your-password"
+  },
+  "deployments": {
+    "deploy-frontend": {
+      "profile": "production",
+      "local": "./dist",
+      "remote": "/public_html",
+      "description": "Deploy frontend build to production",
+      "exclude": [
+        "*.map",
+        "*.test.js",
+        "test/**"
+      ]
+    },
+    "deploy-api": {
+      "profile": "production",
+      "local": "./api/build",
+      "remote": "/api",
+      "description": "Deploy API to production"
+    }
+  }
+}
+```
+
+Then simply say: **"Deploy frontend"** or **"Run deploy-api"** in Amp!
+
 ### 3. Add to Amp Code
 
 Open **Settings → MCP Servers**, click **Add Server**:
@@ -95,6 +131,140 @@ Open **Settings → MCP Servers**, click **Add Server**:
 - **Environment Variables:** (leave empty if using system env vars)
 
 Click **Update Server** and restart Amp.
+
+## Deployment Presets
+
+Deployment presets allow you to save complete deployment workflows and run them with a single command. Perfect for frequent deployments to production, staging, or development environments.
+
+### Setting Up Deployment Presets
+
+Add a `deployments` section to your `.ftpconfig`:
+
+```json
+{
+  "production": { "host": "...", "user": "...", "password": "..." },
+  "staging": { "host": "...", "user": "...", "password": "..." },
+  "deployments": {
+    "deploy-frontend": {
+      "profile": "production",
+      "local": "./dist",
+      "remote": "/public_html",
+      "description": "Deploy frontend build to production",
+      "exclude": ["*.map", "test/**"]
+    },
+    "deploy-staging": {
+      "profile": "staging",
+      "local": "./dist",
+      "remote": "/www/staging",
+      "description": "Deploy to staging environment"
+    }
+  }
+}
+```
+
+### Deployment Configuration Options
+
+Each deployment preset can include:
+
+- **`profile`** *(required)* - Which FTP profile to use (must exist in the same .ftpconfig)
+- **`local`** *(required)* - Local directory to deploy (relative or absolute path)
+- **`remote`** *(required)* - Remote destination path on the server
+- **`description`** *(optional)* - Human-readable description of what this deployment does
+- **`exclude`** *(optional)* - Array of additional patterns to exclude (on top of default ignores)
+
+### Using Deployment Presets
+
+Once configured, deployments are incredibly simple:
+
+**In Amp, just say:**
+```
+"Deploy frontend"
+"Run deploy-staging"
+"Execute deploy-api"
+```
+
+**Or use the tools directly:**
+- `ftp_list_deployments` - See all available deployment presets
+- `ftp_deploy` - Run a specific deployment by name
+
+### Example Output
+
+```
+Deployment "deploy-frontend" complete:
+Deploy frontend build to production
+
+Profile: production
+Local: ./dist
+Remote: /public_html
+
+Uploaded: 23
+Skipped: 5
+Ignored: 47
+```
+
+### Benefits of Deployment Presets
+
+✅ **One-Command Deployment** - No need to specify paths, profiles, or exclusions every time
+✅ **Consistent Deployments** - Same configuration used every time, no human error
+✅ **Multiple Environments** - Easily switch between prod, staging, dev
+✅ **Team Sharing** - Commit `.ftpconfig.example` to share deployment workflows
+✅ **Additional Exclusions** - Exclude deployment-specific files (like source maps)
+
+### Real-World Examples
+
+**Frontend Build Deployment:**
+```json
+"deploy-production": {
+  "profile": "production",
+  "local": "./build",
+  "remote": "/public_html",
+  "description": "Deploy React production build",
+  "exclude": ["*.map", "*.md"]
+}
+```
+
+**WordPress Theme:**
+```json
+"deploy-theme": {
+  "profile": "production",
+  "local": "./wp-content/themes/mytheme",
+  "remote": "/wp-content/themes/mytheme",
+  "description": "Deploy WordPress theme to production"
+}
+```
+
+**API Backend:**
+```json
+"deploy-api": {
+  "profile": "production",
+  "local": "./api/dist",
+  "remote": "/api/v1",
+  "description": "Deploy Node.js API to production",
+  "exclude": ["*.test.js", "docs/**"]
+}
+```
+
+**Multi-Environment Setup:**
+```json
+{
+  "production": { "host": "ftp.mysite.com", "user": "prod", "password": "..." },
+  "staging": { "host": "ftp.staging.mysite.com", "user": "staging", "password": "..." },
+  "deployments": {
+    "deploy-prod": {
+      "profile": "production",
+      "local": "./dist",
+      "remote": "/public_html"
+    },
+    "deploy-staging": {
+      "profile": "staging",
+      "local": "./dist",
+      "remote": "/www"
+    }
+  }
+}
+```
+
+---
 
 ## Complete Tool Reference
 
