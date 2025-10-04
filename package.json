@@ -1,0 +1,25 @@
+{
+  "name": "flowdex-mcp",
+  "version": "1.0.0",
+  "description": "MCP server providing enhanced FTP/SFTP operations with smart sync, search, and direct file access",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "ftp-mcp-server": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": ["mcp", "ftp", "sftp", "file-transfer", "sync", "amp"],
+  "author": "Kynlo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kynlos/FlowdexMCP.git"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "basic-ftp": "^5.0.5",
+    "ssh2-sftp-client": "^11.0.0"
+  }
+}

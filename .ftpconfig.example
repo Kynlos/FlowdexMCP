@@ -1,0 +1,20 @@
+{
+  "production": {
+    "host": "ftp.example.com",
+    "user": "your-username",
+    "password": "your-password",
+    "port": 21,
+    "secure": false
+  },
+  "staging": {
+    "host": "sftp://staging.example.com",
+    "user": "staging-user",
+    "password": "staging-password",
+    "port": 22
+  },
+  "default": {
+    "host": "ftp.mysite.com",
+    "user": "default-user",
+    "password": "default-password"
+  }
+}
