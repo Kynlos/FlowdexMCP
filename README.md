@@ -17,7 +17,10 @@ MCP server providing enhanced FTP/SFTP operations with smart sync, search, and d
 ### 1. Install
 
 ```bash
-npm install -g flowdex-mcp
+git clone https://github.com/Kynlos/FlowdexMCP.git
+cd FlowdexMCP
+npm install
+npm install -g .
 ```
 
 ### 2. Configure Credentials
