@@ -24,27 +24,33 @@ npm install -g flowdex-mcp
 
 **Option A: Environment Variables**
 
+**Required:**
 ```bash
 # Windows
 setx FTPMCP_HOST "ftp.example.com"
 setx FTPMCP_USER "username"
 setx FTPMCP_PASSWORD "password"
-setx FTPMCP_PORT "21"              # Optional: defaults to 21 for FTP, 22 for SFTP
 
 # Linux/Mac
 export FTPMCP_HOST="ftp.example.com"
 export FTPMCP_USER="username"
 export FTPMCP_PASSWORD="password"
-export FTPMCP_PORT="21"            # Optional
 ```
 
-**Required Variables:**
-- `FTPMCP_HOST` - FTP server hostname (e.g., `ftp.example.com` or `sftp://sftp.example.com`)
-- `FTPMCP_USER` - Username for authentication
-- `FTPMCP_PASSWORD` - Password for authentication
+**Optional:**
+```bash
+# Windows
+setx FTPMCP_PORT "21"              # Custom port (defaults: 21 for FTP, 22 for SFTP)
 
-**Optional Variables:**
-- `FTPMCP_PORT` - Custom port number (defaults: 21 for FTP, 22 for SFTP)
+# Linux/Mac
+export FTPMCP_PORT="21"            # Custom port (defaults: 21 for FTP, 22 for SFTP)
+```
+
+**Variable Reference:**
+- `FTPMCP_HOST` *(required)* - FTP server hostname (e.g., `ftp.example.com` or `sftp://sftp.example.com`)
+- `FTPMCP_USER` *(required)* - Username for authentication
+- `FTPMCP_PASSWORD` *(required)* - Password for authentication
+- `FTPMCP_PORT` *(optional)* - Custom port number (defaults: 21 for FTP, 22 for SFTP)
 
 **Option B: Project Config File (Recommended)**
 
